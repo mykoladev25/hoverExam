@@ -10,6 +10,7 @@
   assign bullet_metafield_count = 0
   assign description_content = blank
   assign initial_price_text = blank
+  assign initial_button_price_text = blank
   assign initial_compare_price_text = blank
   assign initial_variant_available = false
   assign plan_option_index = section.settings.plan_option_position | minus: 1
@@ -17,10 +18,26 @@
   assign base_plan_variant = blank
   assign best_offer_plan_variant_id = blank
   assign best_offer_plan_discount_percent = 0
+  assign product_bloc_currency_token = shop.money_format | remove: '{{amount}}' | remove: '{{ amount }}' | remove: '{{amount_no_decimals}}' | remove: '{{ amount_no_decimals }}' | remove: '{{amount_with_comma_separator}}' | remove: '{{ amount_with_comma_separator }}' | remove: '{{amount_no_decimals_with_comma_separator}}' | remove: '{{ amount_no_decimals_with_comma_separator }}' | strip
+  assign in_stock_status_text = 'products.product.inventory_in_stock' | t
+  assign sold_out_status_text = section.settings.sold_out_availability_text | strip
+  assign availability_copy_text = section.settings.availability_text | strip
   assign delivery_days = section.settings.delivery_lead_time_days
   assign product_form_id = 'product-form-' | append: section.id
   assign button_label_text = 'products.product.add_to_cart' | t
   assign sold_out_button_label = 'products.product.sold_out' | t
+
+  if sold_out_status_text == blank
+    assign sold_out_status_text = 'products.product.inventory_out_of_stock' | t
+  endif
+
+  if product_bloc_currency_token == blank
+    assign product_bloc_currency_token = cart.currency.iso_code
+  endif
+
+  if availability_copy_text != blank and availability_copy_text contains in_stock_status_text
+    assign availability_copy_text = availability_copy_text | remove_first: in_stock_status_text | strip
+  endif
 
   if product != blank
     assign initial_variant = product.selected_or_first_available_variant
@@ -50,7 +67,8 @@
     endif
 
     if initial_variant != blank
-      assign initial_price_text = initial_variant.price | money
+      assign initial_price_text = initial_variant.price | money_without_currency | append: product_bloc_currency_token
+      assign initial_button_price_text = initial_variant.price | money_without_currency | replace: ',00', '' | replace: '.00', '' | append: product_bloc_currency_token
       assign initial_variant_available = initial_variant.available
       if section.settings.show_compare_at_price and initial_variant.compare_at_price > initial_variant.price
         assign initial_compare_price_text = initial_variant.compare_at_price | money
@@ -259,6 +277,7 @@
       --product-bloc-card-border: {{ section.settings.plan_default_border }};
       --product-bloc-card-active-background: {{ section.settings.plan_active_background }};
       --product-bloc-card-active-border: {{ section.settings.plan_active_border }};
+      --product-bloc-plan-chip-muted-background: {{ section.settings.plan_label_muted_background }};
       --product-bloc-plan-chip-background: {{ section.settings.plan_label_background }};
       --product-bloc-button-background: {{ section.settings.button_background }};
       --product-bloc-button-text: {{ section.settings.button_text_color }};
@@ -305,7 +324,7 @@
               <span
                 data-variant-data
                 data-variant-id="{{ variant.id }}"
-                data-price-text="{{ variant.price | money | escape }}"
+                data-price-text="{{ variant.price | money_without_currency | replace: ',00', '' | replace: '.00', '' | append: product_bloc_currency_token | escape }}"
                 data-available="{% if variant.available %}true{% else %}false{% endif %}"
               ></span>
             {%- endfor -%}
@@ -661,11 +680,11 @@
                           <span
                             class="product-bloc__button-price"
                             data-cta-price
-                            {% if initial_price_text == blank %}
+                            {% if initial_button_price_text == blank %}
                               hidden
                             {% endif %}
                           >
-                            {{ initial_price_text }}
+                            {{ initial_button_price_text }}
                           </span>
                           {% render 'loading-spinner' %}
                         </button>
@@ -678,31 +697,44 @@
                   {%- endif -%}
                 </div>
 
-                {%- if section.settings.availability_text != blank or delivery_copy != blank -%}
-                  <p class="product-bloc__availability">
-                    <span
-                      data-availability-prefix
-                      data-in-stock-text="{{ section.settings.availability_text | escape }}"
-                      data-sold-out-text="{{ section.settings.sold_out_availability_text | escape }}"
-                    >
-                      {%- if initial_variant != blank and initial_variant_available == false -%}
-                        {{ section.settings.sold_out_availability_text }}
-                      {%- else -%}
-                        {{ section.settings.availability_text }}
-                      {%- endif -%}
-                    </span>
-                    {%- if delivery_copy != blank -%}
+                {%- if product != blank -%}
+                  {%- if availability_copy_text != blank or delivery_copy != blank or initial_variant != blank -%}
+                    <p class="product-bloc__availability">
                       <strong
-                        data-delivery-copy
-                        data-delivery-text="{{ delivery_copy | escape }}"
-                        {% if initial_variant != blank and initial_variant_available == false %}
-                          hidden
-                        {% endif %}
+                        data-availability-status
+                        data-in-stock-text="{{ in_stock_status_text | escape }}"
+                        data-sold-out-text="{{ sold_out_status_text | escape }}"
                       >
-                        {{ delivery_copy }}
+                        {%- if initial_variant != blank and initial_variant_available == false -%}
+                          {{ sold_out_status_text }}
+                        {%- else -%}
+                          {{ in_stock_status_text }}
+                        {%- endif -%}
                       </strong>
-                    {%- endif -%}
-                  </p>
+                      {%- if availability_copy_text != blank -%}
+                        <span
+                          data-availability-copy
+                          data-copy-text="{{ availability_copy_text | escape }}"
+                          {% if initial_variant != blank and initial_variant_available == false %}
+                            hidden
+                          {% endif %}
+                        >
+                          {{ availability_copy_text }}
+                        </span>
+                      {%- endif -%}
+                      {%- if delivery_copy != blank -%}
+                        <strong
+                          data-delivery-copy
+                          data-delivery-text="{{ delivery_copy | escape }}"
+                          {% if initial_variant != blank and initial_variant_available == false %}
+                            hidden
+                          {% endif %}
+                        >
+                          {{ delivery_copy }}
+                        </strong>
+                      {%- endif -%}
+                    </p>
+                  {%- endif -%}
                 {%- endif -%}
 
                 {%- if accordion_benefits_content != blank or accordion_ingredients_content != blank or accordion_usage_content != blank or accordion_certificates_content != blank or accordion_delivery_content != blank -%}
@@ -1108,14 +1140,14 @@
     {
       "type": "text",
       "id": "availability_text",
-      "label": "Availability text",
-      "default": "En stock, commandez maintenant et soyez"
+      "label": "Availability continuation text",
+      "default": ",commandez maintenant et soyez"
     },
     {
       "type": "text",
       "id": "sold_out_availability_text",
-      "label": "Sold out availability text",
-      "default": "Produit momentanément indisponible."
+      "label": "Sold out status override",
+      "default": "En rupture de stock"
     },
     {
       "type": "range",
@@ -1276,6 +1308,12 @@
       "id": "plan_active_border",
       "label": "Plan active border",
       "default": "#C8E4E6"
+    },
+    {
+      "type": "color",
+      "id": "plan_label_muted_background",
+      "label": "Plan label muted background",
+      "default": "#F3F3F3"
     },
     {
       "type": "color",

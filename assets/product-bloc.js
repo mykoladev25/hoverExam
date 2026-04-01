@@ -94,7 +94,8 @@ if (!customElements.get('product-bloc-section')) {
       setupVariantState() {
         this.buttonPrice = this.querySelector('[data-cta-price]');
         this.buttonDivider = this.querySelector('[data-cta-divider]');
-        this.availabilityPrefix = this.querySelector('[data-availability-prefix]');
+        this.availabilityStatus = this.querySelector('[data-availability-status]');
+        this.availabilityCopy = this.querySelector('[data-availability-copy]');
         this.deliveryCopy = this.querySelector('[data-delivery-copy]');
         this.variantData = Array.from(this.querySelectorAll('[data-variant-data]'));
         this.variantIdInput = this.querySelector('.product-variant-id');
@@ -123,8 +124,11 @@ if (!customElements.get('product-bloc-section')) {
         if (!variantNode) {
           if (this.buttonPrice) this.buttonPrice.hidden = true;
           if (this.buttonDivider) this.buttonDivider.hidden = true;
-          if (this.availabilityPrefix) {
-            this.availabilityPrefix.textContent = this.availabilityPrefix.dataset.soldOutText || '';
+          if (this.availabilityStatus) {
+            this.availabilityStatus.textContent = this.availabilityStatus.dataset.soldOutText || '';
+          }
+          if (this.availabilityCopy) {
+            this.availabilityCopy.hidden = true;
           }
           if (this.deliveryCopy) {
             this.deliveryCopy.hidden = true;
@@ -144,10 +148,14 @@ if (!customElements.get('product-bloc-section')) {
           this.buttonDivider.hidden = !priceText;
         }
 
-        if (this.availabilityPrefix) {
-          const inStockText = this.availabilityPrefix.dataset.inStockText || '';
-          const soldOutText = this.availabilityPrefix.dataset.soldOutText || '';
-          this.availabilityPrefix.textContent = isAvailable ? inStockText : soldOutText;
+        if (this.availabilityStatus) {
+          const inStockText = this.availabilityStatus.dataset.inStockText || '';
+          const soldOutText = this.availabilityStatus.dataset.soldOutText || '';
+          this.availabilityStatus.textContent = isAvailable ? inStockText : soldOutText;
+        }
+
+        if (this.availabilityCopy) {
+          this.availabilityCopy.hidden = !isAvailable || !this.availabilityCopy.dataset.copyText;
         }
 
         if (this.deliveryCopy) {
