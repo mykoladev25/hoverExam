@@ -6,6 +6,7 @@
   - product: {Object} Product liquid object
   - variant_images: {Array} Product images associated with a variant
   - limit: {Number} (optional) When passed, limits the number of media items to render
+  - product_bloc_badge_text: {String} Optional badge text rendered inside the media container
 
   Usage:
   {% render 'product-media-gallery' %}
@@ -81,6 +82,7 @@
             media_width: media_width,
             media_fit: section.settings.media_fit,
             constrain_to_viewport: section.settings.constrain_to_viewport,
+            overlay_badge_text: product_bloc_badge_text,
             lazy_load: false
           %}
         </li>
@@ -103,8 +105,12 @@
             {%- liquid
               assign media_position = media_position | default: 0 | plus: 1
               assign lazy_load = false
+              assign overlay_badge_text = blank
               if media_position > 1
                 assign lazy_load = true
+              endif
+              if product.selected_or_first_available_variant.featured_media == nil and media_position == 1
+                assign overlay_badge_text = product_bloc_badge_text
               endif
             -%}
             {% render 'product-thumbnail',
@@ -119,6 +125,7 @@
               media_width: media_width,
               media_fit: section.settings.media_fit,
               constrain_to_viewport: section.settings.constrain_to_viewport,
+              overlay_badge_text: overlay_badge_text,
               lazy_load: lazy_load
             %}
           </li>

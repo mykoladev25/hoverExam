@@ -335,12 +335,8 @@
           <div class="product-bloc__layout product product--{{ section.settings.media_size }} product--{{ section.settings.media_position }} product--{{ section.settings.gallery_layout }} product--mobile-{{ section.settings.mobile_thumbnails }} grid grid--1-col grid--2-col-tablet">
             <div class="grid__item product__media-wrapper product-bloc__media-wrapper">
               <div class="product-bloc__media-shell">
-                {%- if badge_text != blank -%}
-                  <span class="product-bloc__badge">{{ badge_text }}</span>
-                {%- endif -%}
-
                 {%- if has_product_media -%}
-                  {% render 'product-media-gallery', product: product, variant_images: variant_images %}
+                  {% render 'product-media-gallery', product: product, variant_images: variant_images, product_bloc_badge_text: badge_text %}
                   <div class="product-bloc__mobile-gallery-progress" data-gallery-progress hidden>
                     <span class="visually-hidden" data-gallery-progress-label></span>
                     <span class="product-bloc__mobile-gallery-progress-track" aria-hidden="true">
@@ -1141,7 +1137,7 @@
       "type": "text",
       "id": "availability_text",
       "label": "Availability continuation text",
-      "default": ",commandez maintenant et soyez"
+      "default": ", commandez maintenant et soyez"
     },
     {
       "type": "text",
