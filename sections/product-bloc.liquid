@@ -1,0 +1,1359 @@
+{%- liquid
+  assign product = section.settings.product
+  assign initial_variant = blank
+  assign has_product_media = false
+  assign variant_images = blank
+  assign first_3d_model = blank
+  assign badge_text = section.settings.badge_text | strip
+  assign bullet_block_count = 0
+  assign bullet_metafield = blank
+  assign bullet_metafield_count = 0
+  assign description_content = blank
+  assign initial_price_text = blank
+  assign initial_compare_price_text = blank
+  assign initial_variant_available = false
+  assign plan_option_index = section.settings.plan_option_position | minus: 1
+  assign plan_option = blank
+  assign base_plan_variant = blank
+  assign best_offer_plan_variant_id = blank
+  assign best_offer_plan_discount_percent = 0
+  assign delivery_days = section.settings.delivery_lead_time_days
+  assign product_form_id = 'product-form-' | append: section.id
+  assign button_label_text = 'products.product.add_to_cart' | t
+  assign sold_out_button_label = 'products.product.sold_out' | t
+
+  if product != blank
+    assign initial_variant = product.selected_or_first_available_variant
+    assign description_content = product.description | strip_html
+
+    if product.media.size > 0
+      assign has_product_media = true
+      assign variant_images = product.images | where: 'attached_to_variant?', true | map: 'src'
+      assign first_3d_model = product.media | where: 'media_type', 'model' | first
+    endif
+
+    if product.metafields.custom.badge_text.value != blank
+      assign badge_text = product.metafields.custom.badge_text.value
+    endif
+
+    if product.metafields.custom.short_bullets.value != blank
+      assign bullet_metafield = product.metafields.custom.short_bullets.value
+      assign bullet_metafield_count = bullet_metafield.size
+    endif
+
+    if product.metafields.custom.short_description != blank
+      assign description_content = product.metafields.custom.short_description | metafield_tag
+    endif
+
+    if product.metafields.custom.delivery_lead_time_days.value != blank
+      assign delivery_days = product.metafields.custom.delivery_lead_time_days.value
+    endif
+
+    if initial_variant != blank
+      assign initial_price_text = initial_variant.price | money
+      assign initial_variant_available = initial_variant.available
+      if section.settings.show_compare_at_price and initial_variant.compare_at_price > initial_variant.price
+        assign initial_compare_price_text = initial_variant.compare_at_price | money
+      endif
+    endif
+
+    if product.has_only_default_variant == false
+      for option in product.options_with_values
+        if forloop.index0 == plan_option_index
+          assign plan_option = option
+          break
+        endif
+      endfor
+
+      if plan_option == blank
+        assign plan_option = product.options_with_values | first
+        assign plan_option_index = 0
+      endif
+
+      if plan_option != blank and plan_option.values.size > 0
+        assign base_plan_value = plan_option.values | first | append: ''
+
+        for variant in product.variants
+          assign matches_base_context = true
+
+          if variant.options[plan_option_index] != base_plan_value
+            assign matches_base_context = false
+          endif
+
+          if matches_base_context and initial_variant != blank
+            if plan_option_index != 0 and initial_variant.options[0] != blank and variant.options[0] != initial_variant.options[0]
+              assign matches_base_context = false
+            endif
+            if plan_option_index != 1 and initial_variant.options[1] != blank and variant.options[1] != initial_variant.options[1]
+              assign matches_base_context = false
+            endif
+            if plan_option_index != 2 and initial_variant.options[2] != blank and variant.options[2] != initial_variant.options[2]
+              assign matches_base_context = false
+            endif
+          endif
+
+          if matches_base_context
+            assign base_plan_variant = variant
+            break
+          endif
+        endfor
+
+        if base_plan_variant == blank
+          for variant in product.variants
+            if variant.options[plan_option_index] == base_plan_value
+              assign base_plan_variant = variant
+              break
+            endif
+          endfor
+        endif
+
+        for value in plan_option.values
+          assign plan_value = value | append: ''
+          assign plan_variant = blank
+          assign candidate_discount_percent = 0
+
+          for variant in product.variants
+            assign matches_option_value = false
+            if variant.options[plan_option_index] == plan_value
+              assign matches_option_value = true
+            endif
+
+            if matches_option_value
+              assign matches_context = true
+              if initial_variant != blank
+                if plan_option_index != 0 and initial_variant.options[0] != blank and variant.options[0] != initial_variant.options[0]
+                  assign matches_context = false
+                endif
+                if plan_option_index != 1 and initial_variant.options[1] != blank and variant.options[1] != initial_variant.options[1]
+                  assign matches_context = false
+                endif
+                if plan_option_index != 2 and initial_variant.options[2] != blank and variant.options[2] != initial_variant.options[2]
+                  assign matches_context = false
+                endif
+              endif
+
+              if matches_context
+                assign plan_variant = variant
+                break
+              endif
+            endif
+          endfor
+
+          if plan_variant == blank
+            for variant in product.variants
+              if variant.options[plan_option_index] == plan_value
+                assign plan_variant = variant
+                break
+              endif
+            endfor
+          endif
+
+          if plan_variant != blank and plan_variant.compare_at_price > plan_variant.price
+            assign candidate_discount_percent = plan_variant.compare_at_price | minus: plan_variant.price | times: 100.0 | divided_by: plan_variant.compare_at_price | round
+          elsif base_plan_variant != blank and base_plan_variant.id != plan_variant.id and base_plan_variant.price > plan_variant.price
+            assign candidate_discount_percent = base_plan_variant.price | minus: plan_variant.price | times: 100.0 | divided_by: base_plan_variant.price | round
+          endif
+
+          if candidate_discount_percent > best_offer_plan_discount_percent
+            assign best_offer_plan_discount_percent = candidate_discount_percent
+            assign best_offer_plan_variant_id = plan_variant.id
+          endif
+        endfor
+      endif
+    endif
+  endif
+
+  assign delivery_copy = blank
+  if delivery_days > 0
+    assign now_timestamp = 'now' | date: '%s'
+    assign delivery_timestamp = delivery_days | times: 86400 | plus: now_timestamp
+    assign delivery_date = delivery_timestamp | date: '%-d %B' | downcase
+    assign delivery_copy = section.settings.delivery_prefix | append: delivery_date
+  elsif section.settings.delivery_fallback_text != blank
+    assign delivery_copy = section.settings.delivery_fallback_text
+  endif
+
+  for block in section.blocks
+    if block.type == 'bullet_item' and block.settings.text != blank
+      assign bullet_block_count = bullet_block_count | plus: 1
+    endif
+  endfor
+
+  assign accordion_benefits_content = section.settings.accordion_content_benefits
+  assign accordion_ingredients_content = section.settings.accordion_content_ingredients
+  assign accordion_usage_content = section.settings.accordion_content_usage
+  assign accordion_certificates_content = section.settings.accordion_content_certificates
+  assign accordion_delivery_content = section.settings.accordion_content_delivery
+
+  if product != blank
+    if product.metafields.custom.benefits_efficacy != blank
+      assign accordion_benefits_content = product.metafields.custom.benefits_efficacy | metafield_tag
+    endif
+
+    if product.metafields.custom.ingredients != blank
+      assign accordion_ingredients_content = product.metafields.custom.ingredients | metafield_tag
+    endif
+
+    if product.metafields.custom.usage_precautions != blank
+      assign accordion_usage_content = product.metafields.custom.usage_precautions | metafield_tag
+    endif
+
+    if product.metafields.custom.certificates_studies != blank
+      assign accordion_certificates_content = product.metafields.custom.certificates_studies | metafield_tag
+    endif
+
+    if product.metafields.custom.delivery_returns != blank
+      assign accordion_delivery_content = product.metafields.custom.delivery_returns | metafield_tag
+    endif
+  endif
+
+  assign stars_asset = 'trustpilot-etoiles.png'
+  assign logo_asset = 'trustpilot-logo.png'
+-%}
+
+<product-info
+  data-section="{{ section.id }}"
+  data-product-id="{{ product.id }}"
+  data-update-url="false"
+  data-url="{{ product.url }}"
+  {% if section.settings.image_zoom == 'hover' %}
+    data-zoom-on-hover
+  {% endif %}
+>
+  {{ 'section-main-product.css' | asset_url | stylesheet_tag }}
+  {{ 'component-slider.css' | asset_url | stylesheet_tag }}
+  {{ 'component-deferred-media.css' | asset_url | stylesheet_tag }}
+  {{ 'component-price.css' | asset_url | stylesheet_tag }}
+  {{ 'section-product-bloc.css' | asset_url | stylesheet_tag }}
+
+  {%- if plan_option != blank -%}
+    {{ 'component-product-variant-picker.css' | asset_url | stylesheet_tag }}
+  {%- endif -%}
+
+  {%- if first_3d_model -%}
+    {{ 'component-product-model.css' | asset_url | stylesheet_tag }}
+    <link
+      id="ModelViewerStyle-{{ section.id }}"
+      rel="stylesheet"
+      href="https://cdn.shopify.com/shopifycloud/model-viewer-ui/assets/v1.0/model-viewer-ui.css"
+      media="print"
+      onload="this.media='all'"
+    >
+    <link
+      id="ModelViewerOverride-{{ section.id }}"
+      rel="stylesheet"
+      href="{{ 'component-model-viewer-ui.css' | asset_url }}"
+      media="print"
+      onload="this.media='all'"
+    >
+  {%- endif -%}
+
+  {%- style -%}
+    .product-bloc-{{ section.id }} {
+      --product-bloc-surface-color: {{ section.settings.surface_color }};
+      --product-bloc-text-color: {{ section.settings.text_color }};
+      --product-bloc-heading-color: {{ section.settings.heading_color }};
+      --product-bloc-muted-color: {{ section.settings.muted_color }};
+      --product-bloc-line-color: {{ section.settings.line_color }};
+      --product-bloc-card-background: {{ section.settings.plan_default_background }};
+      --product-bloc-card-border: {{ section.settings.plan_default_border }};
+      --product-bloc-card-active-background: {{ section.settings.plan_active_background }};
+      --product-bloc-card-active-border: {{ section.settings.plan_active_border }};
+      --product-bloc-plan-chip-background: {{ section.settings.plan_label_background }};
+      --product-bloc-button-background: {{ section.settings.button_background }};
+      --product-bloc-button-text: {{ section.settings.button_text_color }};
+      --product-bloc-badge-background: {{ section.settings.badge_background }};
+      --product-bloc-badge-text: {{ section.settings.badge_text_color }};
+      --media-radius: 0;
+      --media-border-width: 0px;
+      --media-border-opacity: 0;
+      --media-shadow-opacity: 0;
+      --media-shadow-visible: 0;
+      padding-top: {{ section.settings.padding_top | times: 0.75 | round: 0 }}px;
+      padding-bottom: {{ section.settings.padding_bottom | times: 0.75 | round: 0 }}px;
+    }
+
+    @media screen and (min-width: 750px) {
+      .product-bloc-{{ section.id }} {
+        padding-top: {{ section.settings.padding_top }}px;
+        padding-bottom: {{ section.settings.padding_bottom }}px;
+      }
+    }
+  {%- endstyle -%}
+
+  {%- if has_product_media -%}
+    <script src="{{ 'product-modal.js' | asset_url }}" defer="defer"></script>
+    <script src="{{ 'media-gallery.js' | asset_url }}" defer="defer"></script>
+  {%- endif -%}
+  <script src="{{ 'product-info.js' | asset_url }}" defer="defer"></script>
+  <script src="{{ 'product-form.js' | asset_url }}" defer="defer"></script>
+  <script src="{{ 'product-bloc.js' | asset_url }}" defer="defer"></script>
+
+  {%- if first_3d_model -%}
+    <script type="application/json" id="ProductJSON-{{ product.id }}">
+      {{ product.media | where: 'media_type', 'model' | json }}
+    </script>
+    <script src="{{ 'product-model.js' | asset_url }}" defer></script>
+  {%- endif -%}
+
+  <section class="product-bloc product-bloc-{{ section.id }}">
+    <div class="page-width">
+      <product-bloc-section class="product-bloc__container" data-section-id="{{ section.id }}">
+        <div hidden aria-hidden="true">
+          {%- if product != blank -%}
+            {%- for variant in product.variants -%}
+              <span
+                data-variant-data
+                data-variant-id="{{ variant.id }}"
+                data-price-text="{{ variant.price | money | escape }}"
+                data-available="{% if variant.available %}true{% else %}false{% endif %}"
+              ></span>
+            {%- endfor -%}
+          {%- endif -%}
+        </div>
+
+        <div class="product-bloc__panel">
+          <div class="product-bloc__layout product product--{{ section.settings.media_size }} product--{{ section.settings.media_position }} product--{{ section.settings.gallery_layout }} product--mobile-{{ section.settings.mobile_thumbnails }} grid grid--1-col grid--2-col-tablet">
+            <div class="grid__item product__media-wrapper product-bloc__media-wrapper">
+              <div class="product-bloc__media-shell">
+                {%- if badge_text != blank -%}
+                  <span class="product-bloc__badge">{{ badge_text }}</span>
+                {%- endif -%}
+
+                {%- if has_product_media -%}
+                  {% render 'product-media-gallery', product: product, variant_images: variant_images %}
+                  <div class="product-bloc__mobile-gallery-progress" data-gallery-progress hidden>
+                    <span class="visually-hidden" data-gallery-progress-label></span>
+                    <span class="product-bloc__mobile-gallery-progress-track" aria-hidden="true">
+                      <span class="product-bloc__mobile-gallery-progress-indicator" data-gallery-progress-indicator></span>
+                    </span>
+                  </div>
+                {%- else -%}
+                  <div class="product-bloc__media-placeholder global-media-settings gradient">
+                    {{ 'product-apparel-1' | placeholder_svg_tag: 'placeholder-svg' }}
+                  </div>
+                {%- endif -%}
+              </div>
+            </div>
+
+            <div class="product__info-wrapper grid__item product-bloc__info-wrapper">
+              <div id="ProductInfo-{{ section.id }}" class="product-bloc__info-column">
+                {%- if section.settings.rating_label_text != blank or section.settings.reviews_count_text != blank -%}
+                  <div class="product-bloc__review-line">
+                    {%- if section.settings.rating_label_text != blank -%}
+                      <span>{{ section.settings.rating_label_text }}</span>
+                    {%- endif -%}
+
+                    <span class="product-bloc__review-stars" aria-hidden="true">
+                      {%- if section.settings.trustpilot_stars != blank -%}
+                        {{
+                          section.settings.trustpilot_stars
+                          | image_url: width: 160
+                          | image_tag: loading: 'lazy', widths: '80, 120, 160', sizes: '160px', alt: 'Trustpilot stars'
+                        }}
+                      {%- else -%}
+                        <img src="{{ stars_asset | asset_url }}" alt="Trustpilot stars" loading="lazy">
+                      {%- endif -%}
+                    </span>
+
+                    {%- if section.settings.reviews_count_text != blank -%}
+                      <span>{{ section.settings.reviews_count_text }}</span>
+                    {%- endif -%}
+
+                    <span class="product-bloc__review-logo" aria-hidden="true">
+                      {%- if section.settings.trustpilot_logo != blank -%}
+                        {{
+                          section.settings.trustpilot_logo
+                          | image_url: width: 120
+                          | image_tag: loading: 'lazy', widths: '60, 90, 120', sizes: '120px', alt: 'Trustpilot'
+                        }}
+                      {%- else -%}
+                        <img src="{{ logo_asset | asset_url }}" alt="Trustpilot" loading="lazy">
+                      {%- endif -%}
+                    </span>
+                  </div>
+                {%- endif -%}
+
+                <div class="product-bloc__headline">
+                  <h2 class="product-bloc__title">
+                    {%- if product != blank -%}
+                      {{ product.title | escape }}
+                    {%- endif -%}
+                  </h2>
+                  <div id="price-{{ section.id }}" class="product-bloc__price-stack" role="status">
+                    <span
+                      class="product-bloc__compare-price-wrap"
+                      {% if initial_compare_price_text == blank %}
+                        hidden
+                      {% endif %}
+                    >
+                      <span class="product-bloc__compare-price">{{ initial_compare_price_text }}</span>
+                    </span>
+                    <span class="product-bloc__price">{{ initial_price_text }}</span>
+                  </div>
+                </div>
+
+                {%- if description_content != blank -%}
+                  <div class="product-bloc__description{% if product.metafields.custom.short_description != blank %} rte{% endif %}">
+                    {{ description_content }}
+                  </div>
+                {%- endif -%}
+
+                {%- if bullet_metafield_count > 0 or bullet_block_count > 0 -%}
+                  <ul class="product-bloc__bullets" role="list">
+                    {%- if bullet_metafield_count > 0 -%}
+                      {%- for bullet in bullet_metafield -%}
+                        <li class="product-bloc__bullet">
+                          <span class="product-bloc__bullet-icon" aria-hidden="true">
+                            {{ 'check_icon.svg' | inline_asset_content }}
+                          </span>
+                          <span>{{ bullet }}</span>
+                        </li>
+                      {%- endfor -%}
+                    {%- else -%}
+                      {%- for block in section.blocks -%}
+                        {%- if block.type == 'bullet_item' and block.settings.text != blank -%}
+                          <li class="product-bloc__bullet" {{ block.shopify_attributes }}>
+                            <span class="product-bloc__bullet-icon" aria-hidden="true">
+                              {{ 'check_icon.svg' | inline_asset_content }}
+                            </span>
+                            <span>{{ block.settings.text }}</span>
+                          </li>
+                        {%- endif -%}
+                      {%- endfor -%}
+                    {%- endif -%}
+                  </ul>
+                {%- endif -%}
+
+                {%- if plan_option != blank -%}
+                  <variant-selects
+                    id="variant-selects-{{ section.id }}"
+                    class="product-bloc__variant-selects"
+                    data-section="{{ section.id }}"
+                  >
+                    <fieldset class="js product-form__input product-bloc__plans" aria-label="{{ plan_option.name | escape }}">
+                      <legend class="visually-hidden">{{ plan_option.name }}</legend>
+
+                      {%- for value in plan_option.values -%}
+                        {%- liquid
+                          assign plan_value = value | append: ''
+                          assign option_disabled = true
+                          if value.available
+                            assign option_disabled = false
+                          endif
+
+                          assign plan_variant = blank
+                          for variant in product.variants
+                            assign matches_option_value = false
+                            if variant.options[plan_option_index] == plan_value
+                              assign matches_option_value = true
+                            endif
+
+                            if matches_option_value
+                              assign matches_context = true
+                              if initial_variant != blank
+                                if plan_option_index != 0 and initial_variant.options[0] != blank and variant.options[0] != initial_variant.options[0]
+                                  assign matches_context = false
+                                endif
+                                if plan_option_index != 1 and initial_variant.options[1] != blank and variant.options[1] != initial_variant.options[1]
+                                  assign matches_context = false
+                                endif
+                                if plan_option_index != 2 and initial_variant.options[2] != blank and variant.options[2] != initial_variant.options[2]
+                                  assign matches_context = false
+                                endif
+                              endif
+
+                              if matches_context
+                                assign plan_variant = variant
+                                break
+                              endif
+                            endif
+                          endfor
+
+                          if plan_variant == blank
+                            for variant in product.variants
+                              if variant.options[plan_option_index] == plan_value
+                                assign plan_variant = variant
+                                break
+                              endif
+                            endfor
+                          endif
+
+                          assign plan_label = blank
+                          assign plan_subtitle = blank
+                          assign plan_discount_badge = blank
+                          assign plan_discount_percent = 0
+                          assign plan_days = blank
+                          if plan_variant != blank
+                            if plan_variant.metafields.custom.plan_label.value != blank
+                              assign plan_label = plan_variant.metafields.custom.plan_label.value
+                            endif
+                            if plan_variant.metafields.custom.plan_subtitle.value != blank
+                              assign plan_subtitle = plan_variant.metafields.custom.plan_subtitle.value
+                            endif
+                            if plan_variant.metafields.custom.plan_discount_badge.value != blank
+                              assign plan_discount_badge = plan_variant.metafields.custom.plan_discount_badge.value
+                            endif
+                            if plan_variant.metafields.custom.plan_days.value != blank
+                              assign plan_days = plan_variant.metafields.custom.plan_days.value
+                            endif
+                          endif
+
+                          if plan_variant != blank and plan_days == blank
+                            assign plan_month_count = plan_value | split: ' ' | first | plus: 0
+                            if plan_month_count > 0
+                              assign plan_days = plan_month_count | times: 30
+                            endif
+                          endif
+
+                          if plan_variant != blank and plan_variant.compare_at_price > plan_variant.price
+                            assign plan_discount_percent = plan_variant.compare_at_price | minus: plan_variant.price | times: 100.0 | divided_by: plan_variant.compare_at_price | round
+                          elsif base_plan_variant != blank and plan_variant != blank and base_plan_variant.id != plan_variant.id and base_plan_variant.price > plan_variant.price
+                            assign plan_discount_percent = base_plan_variant.price | minus: plan_variant.price | times: 100.0 | divided_by: base_plan_variant.price | round
+                          endif
+
+                          if plan_label == blank
+                            if forloop.first and section.settings.default_primary_plan_label != blank
+                              assign plan_label = section.settings.default_primary_plan_label
+                            endif
+
+                            if plan_variant != blank and best_offer_plan_variant_id == plan_variant.id and section.settings.default_best_offer_label != blank
+                              assign plan_label = section.settings.default_best_offer_label
+                            endif
+                          endif
+
+                          if plan_discount_badge == blank and section.settings.show_auto_plan_discount and plan_discount_percent > 0
+                            assign plan_discount_badge = '-' | append: plan_discount_percent | append: '%'
+                          endif
+
+                          if plan_subtitle == blank and plan_variant != blank and plan_days > 0
+                            assign per_day_price = plan_variant.price | times: 1.0 | divided_by: plan_days | round
+                            assign per_day_price_money = per_day_price | money
+                            assign plan_subtitle = section.settings.plan_price_prefix | append: per_day_price_money | append: section.settings.plan_price_suffix
+                          endif
+
+                          capture input_id
+                            echo section.id | append: '-plan-' | append: forloop.index0
+                          endcapture
+
+                          capture input_name
+                            echo plan_option.name | append: '-' | append: plan_option.position
+                          endcapture
+                        -%}
+
+                        <div class="product-bloc__plan">
+                          <input
+                            type="radio"
+                            id="{{ input_id }}"
+                            class="product-bloc__plan-input{% if option_disabled %} disabled{% endif %}"
+                            name="{{ input_name | escape }}"
+                            value="{{ plan_value | escape }}"
+                            form="{{ product_form_id }}"
+                            data-product-url="{{ value.product_url }}"
+                            data-option-value-id="{{ value.id }}"
+                            {% if value.selected %}
+                              checked
+                            {% endif %}
+                            {% if option_disabled %}
+                              disabled
+                            {% endif %}
+                          >
+                          <label class="product-bloc__plan-button" for="{{ input_id }}">
+                            {%- if plan_label != blank -%}
+                              <span class="product-bloc__plan-label">{{ plan_label }}</span>
+                            {%- endif -%}
+
+                            <span class="product-bloc__plan-title">{{ plan_value }}</span>
+
+                            {%- if plan_subtitle != blank or plan_discount_badge != blank -%}
+                              <span class="product-bloc__plan-subtitle">
+                                {%- if plan_discount_badge != blank -%}
+                                  <span class="product-bloc__plan-discount">{{ plan_discount_badge }}</span>
+                                {%- endif -%}
+                                {%- if plan_subtitle != blank -%}
+                                  <span>{{ plan_subtitle }}</span>
+                                {%- endif -%}
+                              </span>
+                            {%- endif -%}
+                          </label>
+                        </div>
+                      {%- endfor -%}
+                    </fieldset>
+
+                    {%- if product.options_with_values.size > 1 -%}
+                      <div class="product-bloc__extra-options">
+                        {%- for option in product.options_with_values -%}
+                          {%- if forloop.index0 != plan_option_index -%}
+                            <div class="product-bloc__option-select product-form__input product-form__input--dropdown">
+                              <label class="form__label" for="Option-{{ section.id }}-{{ forloop.index0 }}">
+                                {{ option.name }}
+                              </label>
+                              <div class="select">
+                                <select
+                                  id="Option-{{ section.id }}-{{ forloop.index0 }}"
+                                  class="select__select"
+                                  name="options[{{ option.name | escape }}]"
+                                  form="{{ product_form_id }}"
+                                >
+                                  {% render 'product-variant-options',
+                                    product: product,
+                                    option: option,
+                                    picker_type: 'dropdown'
+                                  %}
+                                </select>
+                                <span class="svg-wrapper">
+                                  {{- 'icon-caret.svg' | inline_asset_content -}}
+                                </span>
+                              </div>
+                            </div>
+                          {%- endif -%}
+                        {%- endfor -%}
+                      </div>
+                    {%- endif -%}
+
+                    <script type="application/json" data-selected-variant>
+                      {{ initial_variant | json }}
+                    </script>
+                  </variant-selects>
+                {%- endif -%}
+
+                <div class="product-bloc__cta">
+                  {%- if product != blank -%}
+                    <product-form class="product-form" data-hide-errors="false">
+                      <div class="product-form__error-message-wrapper product-bloc__error" role="alert" hidden>
+                        <span class="product-form__error-message"></span>
+                      </div>
+
+                      {%- form 'product', product, id: product_form_id, class: 'form', novalidate: 'novalidate', data-type: 'add-to-cart-form' -%}
+                        <input
+                          type="hidden"
+                          name="id"
+                          value="{% if initial_variant != blank %}{{ initial_variant.id }}{% endif %}"
+                          class="product-variant-id"
+                          {% if initial_variant == blank %}
+                            disabled
+                          {% endif %}
+                        >
+
+                        <button
+                          id="ProductSubmitButton-{{ section.id }}"
+                          type="submit"
+                          name="add"
+                          class="product-bloc__submit"
+                          {% if initial_variant == blank or initial_variant_available == false %}
+                            disabled
+                          {% endif %}
+                        >
+                          <span class="product-bloc__button-label" data-button-label>
+                            {%- if initial_variant != blank and initial_variant_available == false -%}
+                              {{ sold_out_button_label }}
+                            {%- else -%}
+                              {{ button_label_text }}
+                            {%- endif -%}
+                          </span>
+                          <span
+                            class="product-bloc__button-divider"
+                            data-cta-divider
+                            {% if initial_price_text == blank %}
+                              hidden
+                            {% endif %}
+                          ></span>
+                          <span
+                            class="product-bloc__button-price"
+                            data-cta-price
+                            {% if initial_price_text == blank %}
+                              hidden
+                            {% endif %}
+                          >
+                            {{ initial_price_text }}
+                          </span>
+                          {% render 'loading-spinner' %}
+                        </button>
+                      {%- endform -%}
+                    </product-form>
+                  {%- else -%}
+                    <button type="button" class="product-bloc__submit" disabled>
+                      <span class="product-bloc__button-label" data-button-label>{{ button_label_text }}</span>
+                    </button>
+                  {%- endif -%}
+                </div>
+
+                {%- if section.settings.availability_text != blank or delivery_copy != blank -%}
+                  <p class="product-bloc__availability">
+                    <span
+                      data-availability-prefix
+                      data-in-stock-text="{{ section.settings.availability_text | escape }}"
+                      data-sold-out-text="{{ section.settings.sold_out_availability_text | escape }}"
+                    >
+                      {%- if initial_variant != blank and initial_variant_available == false -%}
+                        {{ section.settings.sold_out_availability_text }}
+                      {%- else -%}
+                        {{ section.settings.availability_text }}
+                      {%- endif -%}
+                    </span>
+                    {%- if delivery_copy != blank -%}
+                      <strong
+                        data-delivery-copy
+                        data-delivery-text="{{ delivery_copy | escape }}"
+                        {% if initial_variant != blank and initial_variant_available == false %}
+                          hidden
+                        {% endif %}
+                      >
+                        {{ delivery_copy }}
+                      </strong>
+                    {%- endif -%}
+                  </p>
+                {%- endif -%}
+
+                {%- if accordion_benefits_content != blank or accordion_ingredients_content != blank or accordion_usage_content != blank or accordion_certificates_content != blank or accordion_delivery_content != blank -%}
+                  <div class="product-bloc__accordions">
+                    {%- if accordion_benefits_content != blank -%}
+                      {%- assign panel_id = 'ProductBlocAccordion-' | append: section.id | append: '-benefits' -%}
+                      <div class="product-bloc__accordion-item">
+                        <h3 class="product-bloc__accordion-heading">
+                          <button
+                            type="button"
+                            class="product-bloc__accordion-trigger"
+                            data-accordion-button
+                            aria-expanded="{% if section.settings.default_open_accordion == 'benefits' %}true{% else %}false{% endif %}"
+                            aria-controls="{{ panel_id }}"
+                          >
+                            <span class="product-bloc__accordion-title">{{ section.settings.accordion_title_benefits }}</span>
+                            <span class="product-bloc__accordion-icon" aria-hidden="true">
+                              {{ 'dropdown_arrow.svg' | inline_asset_content }}
+                            </span>
+                          </button>
+                        </h3>
+                        <div
+                          id="{{ panel_id }}"
+                          class="product-bloc__accordion-panel"
+                          {% unless section.settings.default_open_accordion == 'benefits' %}
+                            hidden
+                          {% endunless %}
+                        >
+                          <div class="product-bloc__accordion-panel-inner rte">
+                            {{ accordion_benefits_content }}
+                          </div>
+                        </div>
+                      </div>
+                    {%- endif -%}
+
+                    {%- if accordion_ingredients_content != blank -%}
+                      {%- assign panel_id = 'ProductBlocAccordion-' | append: section.id | append: '-ingredients' -%}
+                      <div class="product-bloc__accordion-item">
+                        <h3 class="product-bloc__accordion-heading">
+                          <button
+                            type="button"
+                            class="product-bloc__accordion-trigger"
+                            data-accordion-button
+                            aria-expanded="{% if section.settings.default_open_accordion == 'ingredients' %}true{% else %}false{% endif %}"
+                            aria-controls="{{ panel_id }}"
+                          >
+                            <span class="product-bloc__accordion-title">{{ section.settings.accordion_title_ingredients }}</span>
+                            <span class="product-bloc__accordion-icon" aria-hidden="true">
+                              {{ 'dropdown_arrow.svg' | inline_asset_content }}
+                            </span>
+                          </button>
+                        </h3>
+                        <div
+                          id="{{ panel_id }}"
+                          class="product-bloc__accordion-panel"
+                          {% unless section.settings.default_open_accordion == 'ingredients' %}
+                            hidden
+                          {% endunless %}
+                        >
+                          <div class="product-bloc__accordion-panel-inner rte">
+                            {{ accordion_ingredients_content }}
+                          </div>
+                        </div>
+                      </div>
+                    {%- endif -%}
+
+                    {%- if accordion_usage_content != blank -%}
+                      {%- assign panel_id = 'ProductBlocAccordion-' | append: section.id | append: '-usage' -%}
+                      <div class="product-bloc__accordion-item">
+                        <h3 class="product-bloc__accordion-heading">
+                          <button
+                            type="button"
+                            class="product-bloc__accordion-trigger"
+                            data-accordion-button
+                            aria-expanded="{% if section.settings.default_open_accordion == 'usage' %}true{% else %}false{% endif %}"
+                            aria-controls="{{ panel_id }}"
+                          >
+                            <span class="product-bloc__accordion-title">{{ section.settings.accordion_title_usage }}</span>
+                            <span class="product-bloc__accordion-icon" aria-hidden="true">
+                              {{ 'dropdown_arrow.svg' | inline_asset_content }}
+                            </span>
+                          </button>
+                        </h3>
+                        <div
+                          id="{{ panel_id }}"
+                          class="product-bloc__accordion-panel"
+                          {% unless section.settings.default_open_accordion == 'usage' %}
+                            hidden
+                          {% endunless %}
+                        >
+                          <div class="product-bloc__accordion-panel-inner rte">
+                            {{ accordion_usage_content }}
+                          </div>
+                        </div>
+                      </div>
+                    {%- endif -%}
+
+                    {%- if accordion_certificates_content != blank -%}
+                      {%- assign panel_id = 'ProductBlocAccordion-' | append: section.id | append: '-certificates' -%}
+                      <div class="product-bloc__accordion-item">
+                        <h3 class="product-bloc__accordion-heading">
+                          <button
+                            type="button"
+                            class="product-bloc__accordion-trigger"
+                            data-accordion-button
+                            aria-expanded="{% if section.settings.default_open_accordion == 'certificates' %}true{% else %}false{% endif %}"
+                            aria-controls="{{ panel_id }}"
+                          >
+                            <span class="product-bloc__accordion-title">{{ section.settings.accordion_title_certificates }}</span>
+                            <span class="product-bloc__accordion-icon" aria-hidden="true">
+                              {{ 'dropdown_arrow.svg' | inline_asset_content }}
+                            </span>
+                          </button>
+                        </h3>
+                        <div
+                          id="{{ panel_id }}"
+                          class="product-bloc__accordion-panel"
+                          {% unless section.settings.default_open_accordion == 'certificates' %}
+                            hidden
+                          {% endunless %}
+                        >
+                          <div class="product-bloc__accordion-panel-inner rte">
+                            {{ accordion_certificates_content }}
+                          </div>
+                        </div>
+                      </div>
+                    {%- endif -%}
+
+                    {%- if accordion_delivery_content != blank -%}
+                      {%- assign panel_id = 'ProductBlocAccordion-' | append: section.id | append: '-delivery' -%}
+                      <div class="product-bloc__accordion-item">
+                        <h3 class="product-bloc__accordion-heading">
+                          <button
+                            type="button"
+                            class="product-bloc__accordion-trigger"
+                            data-accordion-button
+                            aria-expanded="{% if section.settings.default_open_accordion == 'delivery' %}true{% else %}false{% endif %}"
+                            aria-controls="{{ panel_id }}"
+                          >
+                            <span class="product-bloc__accordion-title">{{ section.settings.accordion_title_delivery }}</span>
+                            <span class="product-bloc__accordion-icon" aria-hidden="true">
+                              {{ 'dropdown_arrow.svg' | inline_asset_content }}
+                            </span>
+                          </button>
+                        </h3>
+                        <div
+                          id="{{ panel_id }}"
+                          class="product-bloc__accordion-panel"
+                          {% unless section.settings.default_open_accordion == 'delivery' %}
+                            hidden
+                          {% endunless %}
+                        >
+                          <div class="product-bloc__accordion-panel-inner rte">
+                            {{ accordion_delivery_content }}
+                          </div>
+                        </div>
+                      </div>
+                    {%- endif -%}
+                  </div>
+                {%- endif -%}
+              </div>
+            </div>
+          </div>
+
+          {%- if section.settings.right_floating_top_image != blank -%}
+            <div class="product-bloc__floating-image product-bloc__floating-image--top">
+              {{
+                section.settings.right_floating_top_image
+                | image_url: width: 200
+                | image_tag: loading: 'lazy', widths: '80, 120, 160, 200', sizes: '70px'
+              }}
+            </div>
+          {%- endif -%}
+
+          {%- if section.settings.right_floating_middle_image != blank -%}
+            <div class="product-bloc__floating-image product-bloc__floating-image--middle">
+              {{
+                section.settings.right_floating_middle_image
+                | image_url: width: 200
+                | image_tag: loading: 'lazy', widths: '80, 120, 160, 200', sizes: '70px'
+              }}
+            </div>
+          {%- endif -%}
+        </div>
+
+        {%- if has_product_media -%}
+          {% render 'product-media-modal', product: product, variant_images: variant_images %}
+        {%- endif -%}
+      </product-bloc-section>
+    </div>
+  </section>
+</product-info>
+
+{% schema %}
+{
+  "name": "Product bloc",
+  "tag": "section",
+  "class": "section section-product-bloc",
+  "disabled_on": {
+    "groups": ["header", "footer"]
+  },
+  "settings": [
+    {
+      "type": "product",
+      "id": "product",
+      "label": "Product"
+    },
+    {
+      "type": "header",
+      "content": "Content"
+    },
+    {
+      "type": "text",
+      "id": "badge_text",
+      "label": "Badge text",
+      "default": "Hautement dosé",
+      "info": "Optional fallback. Can be connected to a product metafield such as custom.badge_text."
+    },
+    {
+      "type": "header",
+      "content": "Review line"
+    },
+    {
+      "type": "text",
+      "id": "rating_label_text",
+      "label": "Rating label",
+      "default": "Excellent"
+    },
+    {
+      "type": "text",
+      "id": "reviews_count_text",
+      "label": "Reviews count",
+      "default": "17102 avis"
+    },
+    {
+      "type": "image_picker",
+      "id": "trustpilot_stars",
+      "label": "Trustpilot stars image"
+    },
+    {
+      "type": "image_picker",
+      "id": "trustpilot_logo",
+      "label": "Trustpilot logo image"
+    },
+    {
+      "type": "header",
+      "content": "Media"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_sticky_info",
+      "label": "Sticky gallery column",
+      "default": false
+    },
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "Gallery modal color scheme",
+      "default": "scheme-1"
+    },
+    {
+      "type": "select",
+      "id": "media_size",
+      "label": "Gallery size",
+      "default": "large",
+      "options": [
+        { "value": "small", "label": "Small" },
+        { "value": "medium", "label": "Medium" },
+        { "value": "large", "label": "Large" }
+      ]
+    },
+    {
+      "type": "checkbox",
+      "id": "constrain_to_viewport",
+      "label": "Constrain media to viewport",
+      "default": true
+    },
+    {
+      "type": "select",
+      "id": "media_fit",
+      "label": "Media fit",
+      "default": "contain",
+      "options": [
+        { "value": "contain", "label": "Contain" },
+        { "value": "cover", "label": "Cover" }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "gallery_layout",
+      "label": "Gallery layout",
+      "default": "stacked",
+      "options": [
+        { "value": "stacked", "label": "Stacked" },
+        { "value": "columns", "label": "Columns" },
+        { "value": "thumbnail", "label": "Thumbnail" },
+        { "value": "thumbnail_slider", "label": "Thumbnail slider" }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "mobile_thumbnails",
+      "label": "Mobile thumbnails",
+      "default": "hide",
+      "options": [
+        { "value": "columns", "label": "Columns" },
+        { "value": "show", "label": "Show" },
+        { "value": "hide", "label": "Hide" }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "media_position",
+      "label": "Gallery position",
+      "default": "left",
+      "options": [
+        { "value": "left", "label": "Left" },
+        { "value": "right", "label": "Right" }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "image_zoom",
+      "label": "Image zoom",
+      "default": "lightbox",
+      "options": [
+        { "value": "lightbox", "label": "Lightbox" },
+        { "value": "hover", "label": "Hover zoom" },
+        { "value": "none", "label": "None" }
+      ]
+    },
+    {
+      "type": "checkbox",
+      "id": "hide_variants",
+      "label": "Hide variant-only media",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_video_looping",
+      "label": "Enable video looping",
+      "default": false
+    },
+    {
+      "type": "header",
+      "content": "Plan cards"
+    },
+    {
+      "type": "select",
+      "id": "plan_option_position",
+      "label": "Product option used as plan cards",
+      "default": "1",
+      "options": [
+        { "value": "1", "label": "Option 1" },
+        { "value": "2", "label": "Option 2" },
+        { "value": "3", "label": "Option 3" }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": "Plan card title comes from the selected product option value. If variant metafields are empty, the first plan can use the fallback label, the best discounted plan can use the best-offer label, the badge can be auto-calculated from compare-at price or from the first plan price, and the subtitle can be generated from custom.plan_days. Optional variant metafields: custom.plan_label, custom.plan_subtitle, custom.plan_discount_badge, custom.plan_days."
+    },
+    {
+      "type": "text",
+      "id": "default_primary_plan_label",
+      "label": "Default first plan label",
+      "default": "Découverte"
+    },
+    {
+      "type": "text",
+      "id": "default_best_offer_label",
+      "label": "Default best offer label",
+      "default": "Meilleure offre"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_auto_plan_discount",
+      "label": "Auto-calculate plan discount badge",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "plan_price_prefix",
+      "label": "Auto subtitle prefix",
+      "default": "Soit "
+    },
+    {
+      "type": "text",
+      "id": "plan_price_suffix",
+      "label": "Auto subtitle suffix",
+      "default": " / jour"
+    },
+    {
+      "type": "header",
+      "content": "Price and cart"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_compare_at_price",
+      "label": "Show compare at price",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "availability_text",
+      "label": "Availability text",
+      "default": "En stock, commandez maintenant et soyez"
+    },
+    {
+      "type": "text",
+      "id": "sold_out_availability_text",
+      "label": "Sold out availability text",
+      "default": "Produit momentanément indisponible."
+    },
+    {
+      "type": "range",
+      "id": "delivery_lead_time_days",
+      "label": "Delivery lead time in days",
+      "min": 0,
+      "max": 30,
+      "step": 1,
+      "default": 5
+    },
+    {
+      "type": "text",
+      "id": "delivery_prefix",
+      "label": "Delivery prefix",
+      "default": "livré le "
+    },
+    {
+      "type": "text",
+      "id": "delivery_fallback_text",
+      "label": "Delivery fallback text",
+      "default": "livraison rapide"
+    },
+    {
+      "type": "paragraph",
+      "content": "Optional product metafield override: custom.delivery_lead_time_days."
+    },
+    {
+      "type": "header",
+      "content": "Accordions"
+    },
+    {
+      "type": "paragraph",
+      "content": "Connect these rich text settings to product metafields or metaobject fields with dynamic sources, or rely on custom metafields: benefits_efficacy, ingredients, usage_precautions, certificates_studies, delivery_returns."
+    },
+    {
+      "type": "text",
+      "id": "accordion_title_benefits",
+      "label": "Benefits title",
+      "default": "Bienfaits et Efficacité"
+    },
+    {
+      "type": "richtext",
+      "id": "accordion_content_benefits",
+      "label": "Benefits content"
+    },
+    {
+      "type": "text",
+      "id": "accordion_title_ingredients",
+      "label": "Ingredients title",
+      "default": "Ingrédients"
+    },
+    {
+      "type": "richtext",
+      "id": "accordion_content_ingredients",
+      "label": "Ingredients content"
+    },
+    {
+      "type": "text",
+      "id": "accordion_title_usage",
+      "label": "Usage title",
+      "default": "Utilisation & Précautions"
+    },
+    {
+      "type": "richtext",
+      "id": "accordion_content_usage",
+      "label": "Usage content"
+    },
+    {
+      "type": "text",
+      "id": "accordion_title_certificates",
+      "label": "Certificates title",
+      "default": "Certificats & Études"
+    },
+    {
+      "type": "richtext",
+      "id": "accordion_content_certificates",
+      "label": "Certificates content"
+    },
+    {
+      "type": "text",
+      "id": "accordion_title_delivery",
+      "label": "Delivery title",
+      "default": "Livraison & Retour"
+    },
+    {
+      "type": "richtext",
+      "id": "accordion_content_delivery",
+      "label": "Delivery content"
+    },
+    {
+      "type": "select",
+      "id": "default_open_accordion",
+      "label": "Open by default",
+      "default": "benefits",
+      "options": [
+        { "value": "none", "label": "None" },
+        { "value": "benefits", "label": "Benefits" },
+        { "value": "ingredients", "label": "Ingredients" },
+        { "value": "usage", "label": "Usage" },
+        { "value": "certificates", "label": "Certificates" },
+        { "value": "delivery", "label": "Delivery" }
+      ]
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "surface_color",
+      "label": "Panel background",
+      "default": "#FFFFFF"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Body text",
+      "default": "#171714"
+    },
+    {
+      "type": "color",
+      "id": "heading_color",
+      "label": "Heading and price",
+      "default": "#171714"
+    },
+    {
+      "type": "color",
+      "id": "muted_color",
+      "label": "Muted text",
+      "default": "#8A8A88"
+    },
+    {
+      "type": "color",
+      "id": "line_color",
+      "label": "Divider color",
+      "default": "#E9E8E3"
+    },
+    {
+      "type": "color",
+      "id": "plan_default_background",
+      "label": "Plan default background",
+      "default": "#FFFFFF"
+    },
+    {
+      "type": "color",
+      "id": "plan_default_border",
+      "label": "Plan default border",
+      "default": "#E7E6E1"
+    },
+    {
+      "type": "color",
+      "id": "plan_active_background",
+      "label": "Plan active background",
+      "default": "#E2F2F3"
+    },
+    {
+      "type": "color",
+      "id": "plan_active_border",
+      "label": "Plan active border",
+      "default": "#C8E4E6"
+    },
+    {
+      "type": "color",
+      "id": "plan_label_background",
+      "label": "Plan label background",
+      "default": "#D9EBED"
+    },
+    {
+      "type": "color",
+      "id": "badge_background",
+      "label": "Main badge background",
+      "default": "#F3F4DE"
+    },
+    {
+      "type": "color",
+      "id": "badge_text_color",
+      "label": "Main badge text",
+      "default": "#171714"
+    },
+    {
+      "type": "color",
+      "id": "button_background",
+      "label": "Button background",
+      "default": "#171714"
+    },
+    {
+      "type": "color",
+      "id": "button_text_color",
+      "label": "Button text",
+      "default": "#FFFFFF"
+    },
+    {
+      "type": "header",
+      "content": "Spacing"
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "label": "Top padding",
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "default": 48
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "label": "Bottom padding",
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "default": 48
+    }
+  ],
+  "blocks": [
+    {
+      "type": "bullet_item",
+      "name": "Bullet item",
+      "limit": 6,
+      "settings": [
+        {
+          "type": "text",
+          "id": "text",
+          "label": "Text",
+          "default": "Lorem ipsum dolor sit amet"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Product bloc",
+      "blocks": [
+        { "type": "bullet_item" },
+        { "type": "bullet_item" },
+        { "type": "bullet_item" }
+      ]
+    }
+  ]
+}
+{% endschema %}
