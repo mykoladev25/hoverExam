@@ -48,6 +48,30 @@
     %}
 
     {% style %}
+      @font-face {
+        font-family: 'Gotham';
+        src: url('{{ 'gothambook-webfont.woff' | asset_url }}') format('woff');
+        font-weight: 400;
+        font-style: normal;
+        font-display: swap;
+      }
+
+      @font-face {
+        font-family: 'Gotham';
+        src: url('{{ 'gothammedium-webfont.woff' | asset_url }}') format('woff');
+        font-weight: 500;
+        font-style: normal;
+        font-display: swap;
+      }
+
+      @font-face {
+        font-family: 'Gotham';
+        src: url('{{ 'gothambold-webfont.woff' | asset_url }}') format('woff');
+        font-weight: 700;
+        font-style: normal;
+        font-display: swap;
+      }
+
       {{ settings.type_body_font | font_face: font_display: 'swap' }}
       {{ body_font_bold | font_face: font_display: 'swap' }}
       {{ body_font_italic | font_face: font_display: 'swap' }}
@@ -100,6 +124,7 @@
       }
 
       :root {
+        --font-gotham-family: 'Gotham', {{ settings.type_body_font.family }}, {{ settings.type_body_font.fallback_families }};
         --font-body-family: {{ settings.type_body_font.family }}, {{ settings.type_body_font.fallback_families }};
         --font-body-style: {{ settings.type_body_font.style }};
         --font-body-weight: {{ settings.type_body_font.weight }};

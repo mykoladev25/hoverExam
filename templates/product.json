@@ -66,6 +66,7 @@
         "description",
         "share"
       ],
+      "disabled": true,
       "settings": {
         "enable_sticky_info": true,
         "color_scheme": "scheme-1",
@@ -84,6 +85,7 @@
     },
     "related-products": {
       "type": "related-products",
+      "disabled": true,
       "settings": {
         "heading": "You may also like",
         "heading_size": "h2",
@@ -99,10 +101,97 @@
         "padding_top": 36,
         "padding_bottom": 28
       }
+    },
+    "product_bloc_NF9PGf": {
+      "type": "product-bloc",
+      "blocks": {
+        "bullet_item_RXyfef": {
+          "type": "bullet_item",
+          "settings": {
+            "text": "Lorem ipsum dolor sit amet"
+          }
+        },
+        "bullet_item_wx6k8t": {
+          "type": "bullet_item",
+          "settings": {
+            "text": "Lorem ipsum dolor sit amet"
+          }
+        },
+        "bullet_item_KNM9RU": {
+          "type": "bullet_item",
+          "settings": {
+            "text": "Lorem ipsum dolor sit amet"
+          }
+        }
+      },
+      "block_order": [
+        "bullet_item_RXyfef",
+        "bullet_item_wx6k8t",
+        "bullet_item_KNM9RU"
+      ],
+      "name": "Product bloc",
+      "settings": {
+        "product": "lorem-impsum",
+        "badge_text": "Hautement dosé",
+        "rating_label_text": "Excellent",
+        "reviews_count_text": "17102 avis",
+        "enable_sticky_info": false,
+        "color_scheme": "",
+        "media_size": "large",
+        "constrain_to_viewport": true,
+        "media_fit": "contain",
+        "gallery_layout": "stacked",
+        "mobile_thumbnails": "hide",
+        "media_position": "left",
+        "image_zoom": "lightbox",
+        "hide_variants": false,
+        "enable_video_looping": false,
+        "plan_option_position": "1",
+        "default_primary_plan_label": "Découverte",
+        "default_best_offer_label": "Meilleure offre",
+        "show_auto_plan_discount": true,
+        "plan_price_prefix": "Soit",
+        "plan_price_suffix": "/ jour",
+        "show_compare_at_price": true,
+        "availability_text": "​&nbsp;,commandez maintenant et soyez​​&nbsp;",
+        "sold_out_availability_text": "En rupture de stock",
+        "delivery_lead_time_days": 5,
+        "delivery_prefix": "livré le",
+        "delivery_fallback_text": "livraison rapide",
+        "accordion_title_benefits": "Bienfaits et Efficacité",
+        "accordion_content_benefits": "",
+        "accordion_title_ingredients": "Ingrédients",
+        "accordion_content_ingredients": "",
+        "accordion_title_usage": "Utilisation & Précautions",
+        "accordion_content_usage": "",
+        "accordion_title_certificates": "Certificats & Études",
+        "accordion_content_certificates": "",
+        "accordion_title_delivery": "Livraison & Retour",
+        "accordion_content_delivery": "",
+        "default_open_accordion": "benefits",
+        "surface_color": "#ffffff",
+        "text_color": "#171714",
+        "heading_color": "#171714",
+        "muted_color": "#787878",
+        "line_color": "#f3f3f3",
+        "plan_default_background": "#ffffff",
+        "plan_default_border": "#e7e6e1",
+        "plan_active_background": "#e2f2f3",
+        "plan_active_border": "#c8e4e6",
+        "plan_label_muted_background": "#f3f3f3",
+        "plan_label_background": "#c8e4e6",
+        "badge_background": "#f0f3e2",
+        "badge_text_color": "#171714",
+        "button_background": "#171714",
+        "button_text_color": "#ffffff",
+        "padding_top": 0,
+        "padding_bottom": 0
+      }
     }
   },
   "order": [
     "main",
-    "related-products"
+    "related-products",
+    "product_bloc_NF9PGf"
   ]
 }
