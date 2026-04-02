@@ -361,13 +361,29 @@
 
                     <span class="product-bloc__review-stars" aria-hidden="true">
                       {%- if section.settings.trustpilot_stars != blank -%}
+                        {%- liquid
+                          assign trustpilot_stars_width = 160
+                          assign trustpilot_stars_height = trustpilot_stars_width | divided_by: section.settings.trustpilot_stars.aspect_ratio | round
+                        -%}
                         {{
                           section.settings.trustpilot_stars
                           | image_url: width: 160
-                          | image_tag: loading: 'lazy', widths: '80, 120, 160', sizes: '160px', alt: 'Trustpilot stars'
+                          | image_tag:
+                            loading: 'lazy',
+                            width: trustpilot_stars_width,
+                            height: trustpilot_stars_height,
+                            widths: '80, 120, 160',
+                            sizes: '160px',
+                            alt: 'Trustpilot stars'
                         }}
                       {%- else -%}
-                        <img src="{{ stars_asset | asset_url }}" alt="Trustpilot stars" loading="lazy">
+                        <img
+                          src="{{ stars_asset | asset_url }}"
+                          alt="Trustpilot stars"
+                          loading="lazy"
+                          width="160"
+                          height="33"
+                        >
                       {%- endif -%}
                     </span>
 
@@ -377,13 +393,29 @@
 
                     <span class="product-bloc__review-logo" aria-hidden="true">
                       {%- if section.settings.trustpilot_logo != blank -%}
+                        {%- liquid
+                          assign trustpilot_logo_width = 120
+                          assign trustpilot_logo_height = trustpilot_logo_width | divided_by: section.settings.trustpilot_logo.aspect_ratio | round
+                        -%}
                         {{
                           section.settings.trustpilot_logo
                           | image_url: width: 120
-                          | image_tag: loading: 'lazy', widths: '60, 90, 120', sizes: '120px', alt: 'Trustpilot'
+                          | image_tag:
+                            loading: 'lazy',
+                            width: trustpilot_logo_width,
+                            height: trustpilot_logo_height,
+                            widths: '60, 90, 120',
+                            sizes: '120px',
+                            alt: 'Trustpilot'
                         }}
                       {%- else -%}
-                        <img src="{{ logo_asset | asset_url }}" alt="Trustpilot" loading="lazy">
+                        <img
+                          src="{{ logo_asset | asset_url }}"
+                          alt="Trustpilot"
+                          loading="lazy"
+                          width="120"
+                          height="28"
+                        >
                       {%- endif -%}
                     </span>
                   </div>

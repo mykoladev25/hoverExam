@@ -170,7 +170,9 @@
   left: 0;
   border-radius: 10rem;
   background: #171714;
-  transition: left 0.2s ease, width 0.2s ease;
+  transform: translate3d(0, 0, 0);
+  transition: transform 0.2s ease;
+  will-change: transform;
 }
 
 @media screen and (min-width: 500px) {

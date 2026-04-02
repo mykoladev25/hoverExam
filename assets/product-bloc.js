@@ -37,11 +37,19 @@ if (!customElements.get('product-bloc-section')) {
         this.galleryViewer = this.querySelector("slider-component[id^='GalleryViewer-']");
         this.galleryList = this.galleryViewer?.querySelector('.product__media-list');
         this.galleryProgress = this.querySelector('[data-gallery-progress]');
+        this.galleryProgressTrack = this.querySelector('.product-bloc__mobile-gallery-progress-track');
         this.galleryProgressIndicator = this.querySelector('[data-gallery-progress-indicator]');
         this.galleryProgressLabel = this.querySelector('[data-gallery-progress-label]');
         this.galleryControls = this.galleryViewer?.querySelector('.slider-buttons.quick-add-hidden');
 
-        if (!this.galleryViewer || !this.galleryList || !this.galleryProgress || !this.galleryProgressIndicator) return;
+        if (
+          !this.galleryViewer ||
+          !this.galleryList ||
+          !this.galleryProgress ||
+          !this.galleryProgressTrack ||
+          !this.galleryProgressIndicator
+        )
+          return;
 
         this.galleryViewerSlideChangedHandler = (event) => {
           this.syncGalleryProgress(event.detail?.currentPage);
@@ -63,7 +71,14 @@ if (!customElements.get('product-bloc-section')) {
       }
 
       syncGalleryProgress(currentPageOverride) {
-        if (!this.galleryProgress || !this.galleryProgressIndicator || !this.galleryViewer || !this.galleryList) return;
+        if (
+          !this.galleryProgress ||
+          !this.galleryProgressTrack ||
+          !this.galleryProgressIndicator ||
+          !this.galleryViewer ||
+          !this.galleryList
+        )
+          return;
 
         const totalPages = this.getGalleryTotalPages();
         const currentPage = currentPageOverride || this.getGalleryCurrentPage();
@@ -77,12 +92,14 @@ if (!customElements.get('product-bloc-section')) {
         this.galleryProgress.hidden = shouldHide;
         if (shouldHide) return;
 
-        const indicatorWidth = Math.min(Math.max((clientWidth / scrollWidth) * 100, 12), 100);
+        const trackWidth = this.galleryProgressTrack.clientWidth;
+        const indicatorWidthPercent = Math.min(Math.max((clientWidth / scrollWidth) * 100, 12), 100);
+        const indicatorWidth = trackWidth * (indicatorWidthPercent / 100);
         const scrollProgress = maxScroll > 0 ? this.galleryList.scrollLeft / maxScroll : 0;
-        const indicatorLeft = scrollProgress * (100 - indicatorWidth);
+        const indicatorOffset = (trackWidth - indicatorWidth) * scrollProgress;
 
-        this.galleryProgressIndicator.style.width = `${indicatorWidth}%`;
-        this.galleryProgressIndicator.style.left = `${indicatorLeft}%`;
+        this.galleryProgressIndicator.style.width = `${indicatorWidth}px`;
+        this.galleryProgressIndicator.style.transform = `translate3d(${indicatorOffset}px, 0, 0)`;
 
         if (this.galleryProgressLabel) {
           this.galleryProgressLabel.textContent = `${currentPage}/${totalPages}`;
