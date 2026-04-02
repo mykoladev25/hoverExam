@@ -41,7 +41,7 @@
 
   if product != blank
     assign initial_variant = product.selected_or_first_available_variant
-    assign description_content = product.description | strip_html
+    assign description_content = product.description
 
     if product.media.size > 0
       assign has_product_media = true
