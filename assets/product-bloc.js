@@ -18,6 +18,10 @@ if (!customElements.get('product-bloc-section')) {
           this.galleryViewer.removeEventListener('slideChanged', this.galleryViewerSlideChangedHandler);
         }
 
+        if (this.galleryScrollHandler && this.galleryList) {
+          this.galleryList.removeEventListener('scroll', this.galleryScrollHandler);
+        }
+
         if (this.galleryProgressResizeHandler) {
           window.removeEventListener('resize', this.galleryProgressResizeHandler);
         }
@@ -31,21 +35,26 @@ if (!customElements.get('product-bloc-section')) {
 
       setupGalleryProgress() {
         this.galleryViewer = this.querySelector("slider-component[id^='GalleryViewer-']");
+        this.galleryList = this.galleryViewer?.querySelector('.product__media-list');
         this.galleryProgress = this.querySelector('[data-gallery-progress]');
         this.galleryProgressIndicator = this.querySelector('[data-gallery-progress-indicator]');
         this.galleryProgressLabel = this.querySelector('[data-gallery-progress-label]');
         this.galleryControls = this.galleryViewer?.querySelector('.slider-buttons.quick-add-hidden');
 
-        if (!this.galleryViewer || !this.galleryProgress || !this.galleryProgressIndicator) return;
+        if (!this.galleryViewer || !this.galleryList || !this.galleryProgress || !this.galleryProgressIndicator) return;
 
         this.galleryViewerSlideChangedHandler = (event) => {
           this.syncGalleryProgress(event.detail?.currentPage);
+        };
+        this.galleryScrollHandler = () => {
+          this.syncGalleryProgress();
         };
         this.galleryProgressResizeHandler = () => {
           this.syncGalleryProgress();
         };
 
         this.galleryViewer.addEventListener('slideChanged', this.galleryViewerSlideChangedHandler);
+        this.galleryList.addEventListener('scroll', this.galleryScrollHandler, { passive: true });
         window.addEventListener('resize', this.galleryProgressResizeHandler);
 
         requestAnimationFrame(() => {
@@ -54,17 +63,23 @@ if (!customElements.get('product-bloc-section')) {
       }
 
       syncGalleryProgress(currentPageOverride) {
-        if (!this.galleryProgress || !this.galleryProgressIndicator || !this.galleryViewer) return;
+        if (!this.galleryProgress || !this.galleryProgressIndicator || !this.galleryViewer || !this.galleryList) return;
 
         const totalPages = this.getGalleryTotalPages();
         const currentPage = currentPageOverride || this.getGalleryCurrentPage();
-        const shouldHide = totalPages < 2 || this.galleryControls?.classList.contains('small-hide');
+        const isMobileViewport = window.matchMedia('(max-width: 749px)').matches;
+        const scrollWidth = this.galleryList.scrollWidth;
+        const clientWidth = this.galleryList.clientWidth;
+        const maxScroll = Math.max(scrollWidth - clientWidth, 0);
+        const hasScrollableGallery = maxScroll > 1;
+        const shouldHide = totalPages < 2 || !isMobileViewport || !hasScrollableGallery;
 
         this.galleryProgress.hidden = shouldHide;
         if (shouldHide) return;
 
-        const indicatorWidth = 100 / totalPages;
-        const indicatorLeft = ((currentPage - 1) / totalPages) * 100;
+        const indicatorWidth = Math.min(Math.max((clientWidth / scrollWidth) * 100, 12), 100);
+        const scrollProgress = maxScroll > 0 ? this.galleryList.scrollLeft / maxScroll : 0;
+        const indicatorLeft = scrollProgress * (100 - indicatorWidth);
 
         this.galleryProgressIndicator.style.width = `${indicatorWidth}%`;
         this.galleryProgressIndicator.style.left = `${indicatorLeft}%`;
