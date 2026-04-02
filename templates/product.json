@@ -153,7 +153,7 @@
         "plan_price_prefix": "Soit",
         "plan_price_suffix": "/ jour",
         "show_compare_at_price": true,
-        "availability_text": ",commandez maintenant et soyez",
+        "availability_text": "​&nbsp;,commandez maintenant et soyez​​&nbsp;",
         "sold_out_availability_text": "En rupture de stock",
         "delivery_lead_time_days": 5,
         "delivery_prefix": "livré le",
