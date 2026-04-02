@@ -737,8 +737,7 @@
                           {{ sold_out_status_text }}
                         {%- else -%}
                           {{ in_stock_status_text }}
-                        {%- endif -%}
-                      </strong>
+                        {%- endif -%}</strong>
                       {%- if availability_copy_text != blank -%}
                         <span
                           data-availability-copy
@@ -746,9 +745,7 @@
                           {% if initial_variant != blank and initial_variant_available == false %}
                             hidden
                           {% endif %}
-                        >
-                          {{ availability_copy_text }}
-                        </span>
+                        >{{ availability_copy_text }}</span>
                       {%- endif -%}
                       {%- if delivery_copy != blank -%}
                         <strong
@@ -757,9 +754,7 @@
                           {% if initial_variant != blank and initial_variant_available == false %}
                             hidden
                           {% endif %}
-                        >
-                          {{ delivery_copy }}
-                        </strong>
+                        >{{ delivery_copy }}</strong>
                       {%- endif -%}
                     </p>
                   {%- endif -%}

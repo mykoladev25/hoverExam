@@ -377,7 +377,6 @@
 .product-bloc__plan-input:checked + .product-bloc__plan-button {
   border-color: transparent;
   background: var(--product-bloc-card-active-background);
-  box-shadow: inset 0 0 0 0.1rem var(--product-bloc-card-active-border);
 }
 
 .product-bloc__plan-input:focus-visible + .product-bloc__plan-button {
